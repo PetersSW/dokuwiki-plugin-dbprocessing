@@ -1,0 +1,7 @@
+base   dbprocessing
+author Peter H. Spaeth
+email  phs.sw@web.de
+date   2025-12-19
+name   dbprocessing Dokuwiki Plugin
+desc   processes input in database using bureaucracy
+url    none

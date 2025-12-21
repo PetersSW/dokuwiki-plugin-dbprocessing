@@ -1,0 +1,72 @@
+/* TCS plugins: mailing list */
+.TCSbtn {
+	background-color:#326CB3;
+	color:#A5CAFF;
+	font-size: small;
+	min-width:10em;
+	border: 5px outset #A5CAFF;
+	margin:4px 2px;
+	padding:5px;
+	text-align: center;
+}
+
+.TCSbtn:hover { background-color: green; color: white; }
+
+
+/* 1) Reduce container margins/padding on narrow screens */
+@media (max-width: 1000px) {
+	/* less space waste for blue padding */
+	.dw-container.container-fluid.mx-5,
+	.container-fluid.mx-5 {
+		margin-left: 0 !important;
+		margin-right: 0 !important;
+		padding-left: 5px !important;
+		padding-right: 5px !important;
+	}
+
+	/*!* 3) Make checkboxes bigger (use transform: scale). *!*/
+	/*input[type="checkbox"].checkbox-inline {*/
+	/*	transform: scale(3.0);*/
+	/*	transform-origin: left center;*/
+	/*	margin-right: 0.5em; !* some spacing so the text isn’t too close *!*/
+
+	/*}*/
+
+
+	/* Reduce padding of dw-content (the actual page content) on the page (dw-content-page, pink frame) */
+	.dw-content {
+		padding: 5px !important;
+		border-radius: 5px !important;
+	}
+
+	/* font size in tables */
+	table {
+		font-size:medium !important;
+	}
+
+	/* center text vertically in tables
+		applied to all cells: table data and table header (just special table data) */
+	td,
+	th {
+		vertical-align: middle !important;
+	}
+
+	input[type="checkbox"] {
+		/* Ensure the checkbox only takes as much space as needed */
+		display: inline-block;
+		width: auto;
+		height: auto;
+
+		/* Scale up the checkbox by 1.5 times its original size */
+		transform: scale(1.5);
+		/* Optional: adjust margins to ensure proper spacing */
+		margin: 0.5em;
+	}
+
+	/* bigger text in TCS Style button */
+	.TCSbtn {
+		font-size: medium;
+	}
+
+}
+
