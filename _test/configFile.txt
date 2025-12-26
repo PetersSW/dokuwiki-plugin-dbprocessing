@@ -1,0 +1,20 @@
+====== TCS Inventar ======
+===== Select =====
+SQL-Abfrage für Tabelleninhalt //(Feldname bzw. Alias ist Spaltenüberschrift)//
+<code sql select>
+SELECT id AS "Inventarnr.", Beschreibung, Kategorie, Zugang, Abgang 
+FROM `tcs22inventar` 
+WHERE 1  
+ORDER BY id;
+</code>
+\\ 
+\\ 
+===== Class =====
+Class für die Spaltenformatierung //(Spaltenname=class)//
+<code class>
+Inventarnr.=align_right\\
+Beschreibung=align_left\\ 
+Kategorie=align_center\\
+Zugang=align_center\\ 
+Abgang=align_center\\
+</code>
