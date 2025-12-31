@@ -1,13 +1,16 @@
 <?php
-/**
- * DBprocessing Plugin
- * calls bureaucracy plugin using DB content as input
- *
- * @license	GPL 3 (http://www.gnu.org/licenses/gpl.html)
- * @author	 Peter H. Spaeth <phs.sw@web.de>  
- * @copyright Copyright(c) 2025, Peter Spaeth
- * @version 0.5 / Dec 20, 2025 
- */
+//////////////////////////////////////////////////////////////////////////////////////////////////
+//
+// // DBprocessing Plugin
+// displays sql select results as table enhanced with manipulation actions called by button
+// can call bureaucracy plugin using DB content as input
+//
+// @license	GPL 3 (http://www.gnu.org/licenses/gpl.html)
+// @author	 Peter H. Spaeth <phs.sw@web.de>  
+// @copyright Copyright(c) 2025, Peter Spaeth
+// @version 0.5 / Dec 20, 2025 
+//
+//////////////////////////////////////////////////////////////////////////////////////////////////
 
 // must run within DokuWiki
 defined('DOKU_INC') or die('DokuWiki plugin needs DokuWiki!');
@@ -50,12 +53,9 @@ class syntax_plugin_dbprocessing extends DokuWiki_Syntax_Plugin {
 		// addSpecialPattern is typical for substition plugins. Entry/Exit in one step. Other plugin surround unmatched text.
 	}
 
-	/**
-	* Handle the match
-	 * {{TCSloan:loanDivingEquipment}} ==> ['loanDivingEquipment']
-	 * return array is (typically cached and) passed to render() function as $data
-	 * state is probably always: DOKU_LEXER_SPECIAL - from addSpecialPattern and not used
-	*/
+	// Handle the match
+	// {{DBprocessing:file=<configuration filename>?form=<formname>}}
+	// return result array file=><configuration filename, form=><form name (DokuWikie (bureaucracy) page)>
 	function handle($match, $state, $pos, Doku_Handler $handler){
 		date_default_timezone_set('UTC');
 //		error_reporting(E_ALL);
@@ -67,42 +67,45 @@ class syntax_plugin_dbprocessing extends DokuWiki_Syntax_Plugin {
 		return $result;
 	}
 
-	/**
-	* Create output according to $data[0].
-	 * ['loanDivingEquipment'] ==> switch case 'loanDivingEquipment'['loanDivingEquipment']
-	 * $data is the return of handle() function
-	 * $mode, also sometimes $format: the output format, always XHTML in DokuWiki
-	 *
-	*/
+	// Create output according to $data[0].
+	// ['loanDivingEquipment'] ==> switch case 'loanDivingEquipment'['loanDivingEquipment']
+	// $data is the return of handle() function
+	// $format, also sometimes $format: the output format, always XHTML in DokuWiki
 	function render($format, Doku_Renderer $renderer, $data) {
-		global $ID;
 		global $INFO;  // Dokuwiki global, slightly different to docu https://www.dokuwiki.org/devel:environment#global_variables
         global $INPUT;
 		global $conf;
 		global $lang;
 
-        if ($format != 'xhtml') {
-            return false;
-        }
+        if ($format != 'xhtml') return FALSE;
+		if(!array_key_exists('file', $data)) return FALSE;
+
 		$renderer->nocache();
-        $configFile = new configFile($conf['datadir'].'/dbprocessing/'.$data['file'].'.txt');
-        // config file availabe
-        if(!($configFile->configFileExists())) {
-            $renderer->cdata('[n/a]');
-            $renderer->linebreak();
-            return FALSE;
-        } else {
-			$sql = $configFile->getTagContent('code sql select');
+
+		// at least read access to config file (AUTH_xxxx defined in inc/defines.php
+		if(auth_aclcheck('dbprocessing:'.$data['file'], $INFO['userinfo']['user'], $INFO['userinfo']['grps']) >= AUTH_READ) {
+			$configFile = new configFile($conf['datadir'].'/dbprocessing/'.$data['file'].'.txt');
+			// process input
+			if($INPUT->has('update')) {
+				$renderer->doc .= $this->processInput($INPUT->str('update'), $configFile);
+			}
+			if($INPUT->has('insert')) {
+				$renderer->doc .= $this->processInput($INPUT->str('insert'), $configFile);
+			}
+			$sql = $configFile->getTagContent('code sql show');
 			if($sql) {
 				$TCSdb = new TCSdb();
-				$this->displayArrAsTable($renderer, $TCSdb->query($sql, NULL), $data['form'], $configFile);
-				$renderer->linebreak();
+				if(!array_key_exists('form', $data)) $data['form'] = NULL;
+				$this->displayArrAsTable($renderer, $TCSdb->query($sql, NULL), $configFile, $data['form']);
 			} else {
 				$renderer->cdata('ERROR: can\'t find valid SQL!');
 				return FALSE;
 			}
+		} else {
+			$renderer->cdata('[n/a]');
+			$renderer->linebreak();
+			return FALSE;
 		}
-
 		return TRUE; 
 	}
 	
@@ -117,9 +120,20 @@ class syntax_plugin_dbprocessing extends DokuWiki_Syntax_Plugin {
 	}
 
 	// display array as table
-	function displayArrAsTable($R, $lines, $form, $configFile = NULL) {
+	function displayArrAsTable($R, $lines, $configFile, $form=NULL) {
 		Global $conf;
+		Global $ID;
 
+		$SQLs = array(
+			'insert' => $configFile->getTagContent('code sql insert'),
+			'update' => $configFile->getTagContent('code sql update'),
+		);
+		// form
+		$R->doc .= 
+    	        '<form id="dbprocessing__form" method="post" action="?id='.
+        	    $ID.
+           		'" accept-charset="utf-8">';
+		// table
 		$R->table_open(NULL, NULL, NULL, 'dbprocessing');
 		$R->tablethead_open();
 		$R->tablerow_open();
@@ -128,9 +142,21 @@ class syntax_plugin_dbprocessing extends DokuWiki_Syntax_Plugin {
 			$R->cdata($lineKey);
 			$R->tableheader_close();
 		}
-		$R->tableheader_open(1,'center', 1, 'dbHeader');
-		$R->cdata('Action');
-		$R->tableheader_close();
+		// insert
+		if($SQLs['insert']) {
+			$R->tableheader_open(1, 'center', 1, 'dbHeader');
+			$R->tableheader_close();
+		}
+		// update
+		if($SQLs['update']) {
+			$R->tableheader_open(1, 'center', 1, 'dbHeader');
+			$R->tableheader_close();
+		}
+		if($form) {
+			$R->tableheader_open(1,'center', 1, 'dbHeader');
+			$R->cdata('Bearbeiten');
+			$R->tableheader_close();
+		}
 		$R->tablerow_close();
 		$R->tablethead_close();
 		$R->tabletbody_open();
@@ -142,7 +168,7 @@ class syntax_plugin_dbprocessing extends DokuWiki_Syntax_Plugin {
 				$colValue = trim($colValue);
 				$R->tablecell_open(1, NULL, 1, $configFile->getClass($colKey));
 				[$year, $month, $day] = explode('-', $colValue);
-				if($year == '0000') {
+				if(($year == '0000') || ($colValue == NULL)){
 					$R->cdata('---');	// invalid year 
 				}
 				else {
@@ -152,14 +178,42 @@ class syntax_plugin_dbprocessing extends DokuWiki_Syntax_Plugin {
 				}
 				$R->tablecell_close();
 			}
-			$R->tablecell_open(1, 'center', 1, 'DBprocessingLink');
-			$R->internallink($form.'?'.$variables, 'Update');
-			$R->tablecell_close();
+			if($form) {
+				$R->tablecell_open(1, 'center', 1, 'DBprocessingLink');
+				$R->internallink($form.'?'.$variables, 'Update');
+				$R->tablecell_close();
+			}
+			// insert
+			if($SQLs['insert']) {
+				$R->tablecell_open(1, 'center', 1, 'DBprocessingInsert');
+				$R->doc .= '<button type="submit" value="insert'.$variables.'" name="insert" title="insert">insert</button> ';
+				$R->tablecell_close();
+			}
+			// insert
+			if($SQLs['update']) {
+				$R->tablecell_open(1, 'center', 1, 'DBprocessingUpdate');
+				$R->doc .= '<button type="submit" value="update'.$variables.'" name="update" title="update">update</button> ';
+				$R->tablecell_close();
+			}
 			$R->tablerow_close();
 		}
 		$R->tabletbody_close();
 		$R->table_close();
+		$R->doc .= '</form>';
 		return;
 	}
 
+	function processInput($action, $configFile) {
+		$actionArr = explode('&', $action);
+		foreach($actionArr as $key => $param) {
+			$paramArr = explode('=', $param);
+			if($paramArr[1]) {
+				$params[str_replace('@', '', $paramArr[0])] = $paramArr[1];
+			}
+		}
+		$ret = $action.'</ br>'.
+			$actionArr[0].' SQL: '.$configFile->getTagContent('code sql '.$actionArr[0]).'</ br>'.
+			var_export($params, TRUE).'</ br>';
+		return $ret;
+	}
 }	
