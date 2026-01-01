@@ -43,6 +43,10 @@ class configFile {
     public function getClass($key) {
         if(!$this->classes) $this->setClasses();
         if(array_key_exists($key, $this->classes)) return $this->classes[$key];
-        else return 'x';
+        else return '';
     }
+
+//    public function getButtonLabel($button) {
+//        return $button;
+//    }
 }
