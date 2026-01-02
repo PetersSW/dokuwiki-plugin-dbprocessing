@@ -2,10 +2,12 @@
 namespace DBprocessing;
 
 define ('TAG_CLASS', 'code class');
+define ('TAG_BUTTON', 'code button');
 
 class configFile {
 	private $confFileContent;
     private $classes;
+    private $buttons;
 	
 	public function __construct($confFileName) {
         $classes=FALSE;
@@ -27,26 +29,27 @@ class configFile {
         return ($this->confFileContent ? TRUE : FALSE);
     }
 
-    private function setClasses($identifiedTag=NULL) {
-        $identifiedTag = $identifiedTag ? $identifiedTag : TAG_CLASS;
-        $classConfig = $this->getTagContent($identifiedTag);
-        $classParams = str_replace(array('\\\\'.PHP_EOL, '\\\\ '.PHP_EOL, PHP_EOL), array('\\\\ ', '\\\\ ', '\\\\\ '), $classConfig);
-        $classParams = explode('\\\\ ', $classParams);
-        foreach($classParams as $key => $classParam) {
-            [$classKey, $classValue] = explode('=', $classParam, 2);
-            if(substr($classValue, -2) == '\\\\') $classValue = substr($classValue, 0, -2);
-            $this->classes[$classKey] = $classValue;
+    private function getSettings($identifierTag) {
+        $config = $this->getTagContent($identifierTag);
+        $params = str_replace(array('\\\\'.PHP_EOL, '\\\\ '.PHP_EOL, PHP_EOL), array('\\\\ ', '\\\\ ', '\\\\ '), $config);
+        $params = explode('\\\\ ', $params);
+        foreach($params as $key => $value) {
+            [$subKey, $subValue] = explode('=', $value, 2);
+            if(substr($subValue, -2) == '\\\\') $subValue = substr($subValue, 0, -2);
+            $ret[$subKey] = $subValue;
         }
-        return $this->classes;
+        return $ret;
     }
 
     public function getClass($key) {
-        if(!$this->classes) $this->setClasses();
+        if(!(isset($this->classes))) $this->classes = $this->getSettings(TAG_CLASS);
         if(array_key_exists($key, $this->classes)) return $this->classes[$key];
         else return '';
     }
 
-//    public function getButtonLabel($button) {
-//        return $button;
-//    }
+    public function getButton($button) {
+        if(!(isset($this->buttons))) $this->buttons = $this->getSettings(TAG_BUTTON);
+        if(array_key_exists($button, $this->buttons)) return $this->buttons[$button];
+        else return FALSE;
+    }
 }

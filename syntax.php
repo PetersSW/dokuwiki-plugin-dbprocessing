@@ -88,16 +88,10 @@ class syntax_plugin_dbprocessing extends DokuWiki_Syntax_Plugin {
 			$configFile = new configFile($conf['datadir'].'/dbprocessing/'.$data['file'].'.txt');
 			// process input
 			if($INPUT->has('update')) {
-				if(!$this->processInput($TCSdb, $INPUT->str('update'), $configFile)) {
-					$renderer->cdata('ERROR: can\'t find valid SQL!');
-					return FALSE;
-				}
+				$this->processInput($TCSdb, $INPUT->str('update'), $configFile);
 			}
 			if($INPUT->has('insert')) {
-				if(!$this->processInput($TCSdb, $INPUT->str('insert'), $configFile)) {
-					$renderer->cdata('ERROR: can\'t find valid SQL!');
-					return FALSE;
-				}
+				$this->processInput($TCSdb, $INPUT->str('insert'), $configFile);
 			}
 			$sql = $configFile->getTagContent('code sql show');
 			if($sql) {
@@ -196,15 +190,16 @@ class syntax_plugin_dbprocessing extends DokuWiki_Syntax_Plugin {
 			}
 			// insert
 			if($SQLs['insert']) {
-//				$label = $configFile->getButtonLabel('insert');
+				$label = $configFile->getButton('insert') ? $configFile->getButton('insert') : 'insert';
 				$R->tablecell_open(1, 'center', 1, 'DBprocessingInsert');
-				$R->doc .= '<button type="submit" class="TCSbtn" value="insert'.$variables.'" name="insert" title="insert">insert</button> ';
+				$R->doc .= '<button type="submit" class="TCSbtn" value="insert'.$variables.'" name="insert" title="insert">'.$label.'</button> ';
 				$R->tablecell_close();
 			}
 			// insert
 			if($SQLs['update']) {
+				$label = $configFile->getButton('update') ? $configFile->getButton('update') : 'update';
 				$R->tablecell_open(1, 'center', 1, 'DBprocessingUpdate');
-				$R->doc .= '<button type="submit" class="TCSbtn" value="update'.$variables.'" name="update" title="update">update</button> ';
+				$R->doc .= '<button type="submit" class="TCSbtn" value="update'.$variables.'" name="update" title="update">'.$label.'</button> ';
 				$R->tablecell_close();
 			}
 			$R->tablerow_close();
@@ -216,6 +211,7 @@ class syntax_plugin_dbprocessing extends DokuWiki_Syntax_Plugin {
 	}
 
 	function processInput($TCSdb, $action, $configFile) {
+		Global $INFO;
 		$actionArr = explode('&', $action);
 		$sql = $configFile->getTagContent('code sql '.$actionArr[0]);
 		if($sql) {
@@ -225,8 +221,10 @@ class syntax_plugin_dbprocessing extends DokuWiki_Syntax_Plugin {
 					$params[str_replace('@', '', ':'.$paramArr[0])] = $paramArr[1];
 				}
 			}
+			$params[':user'] = $INFO['userinfo']['user'];
 			$sql = str_replace(array_keys($params), $params, $sql);
-			return $TCSdb->query($sql, NULL);
+			$TCSdb->query($sql, NULL);
+			return TRUE;
 		}
 		else return FALSE;
 	}
