@@ -79,7 +79,8 @@ class syntax_plugin_dbprocessing extends DokuWiki_Syntax_Plugin {
 
         if ($format != 'xhtml') return FALSE;
 		if(!array_key_exists('file', $data)) return FALSE;
-
+		if(!array_key_exists('mode', $data)) $data['mode'] = NULL;	// multiple means use checkboxes 
+		if(!array_key_exists('form', $data)) $data['form'] = NULL;
 		$renderer->nocache();
 
 		// at least read access to config file (AUTH_xxxx defined in inc/defines.php
@@ -88,15 +89,17 @@ class syntax_plugin_dbprocessing extends DokuWiki_Syntax_Plugin {
 			$configFile = new configFile($conf['datadir'].'/dbprocessing/'.$data['file'].'.txt');
 			// process input
 			if($INPUT->has('update')) {
-				$this->processInput($TCSdb, $INPUT->str('update'), $configFile);
+				if($INPUT->has('selectedAssets')) $this->processInput($TCSdb, $INPUT->arr('selectedAssets'), $configFile);
+				else $this->processInput($TCSdb, $INPUT->str('update'), $configFile);
 			}
 			if($INPUT->has('insert')) {
-				$this->processInput($TCSdb, $INPUT->str('insert'), $configFile);
+				if($INPUT->has('selectedAssets')) $this->processInput($TCSdb, $INPUT->arr('selectedAssets'), $configFile);
+				else  $this->processInput($TCSdb, $INPUT->str('insert'), $configFile);
 			}
 			$sql = $configFile->getTagContent('code sql show');
 			if($sql) {
 				if(!array_key_exists('form', $data)) $data['form'] = NULL;
-				$this->displayArrAsTable($renderer, $TCSdb->query($sql, NULL), $configFile, $data['form']);
+				$this->displayArrAsTable($renderer, $TCSdb->query($sql, NULL), $configFile, $data['mode'], $data['form']);
 			} else {
 				$renderer->cdata('ERROR: can\'t find valid SQL!');
 				return FALSE;
@@ -120,7 +123,7 @@ class syntax_plugin_dbprocessing extends DokuWiki_Syntax_Plugin {
 	}
 
 	// display array as table
-	function displayArrAsTable($R, $lines, $configFile, $form=NULL) {
+	function displayArrAsTable($R, $lines, $configFile, $mode=NULL, $form=NULL) {
 		Global $conf;
 		Global $ID;
 
@@ -128,6 +131,11 @@ class syntax_plugin_dbprocessing extends DokuWiki_Syntax_Plugin {
 			'insert' => $configFile->getTagContent('code sql insert'),
 			'update' => $configFile->getTagContent('code sql update'),
 		);
+		$label = array(
+			'insert' => $configFile->getButton('insert') ? $configFile->getButton('insert') : 'insert',
+			'update' => $configFile->getButton('update') ? $configFile->getButton('update') : 'update',
+		);
+
 		// form
 		$R->doc .= 
     	        '<form id="dbprocessing__form" method="post" action="?id='.
@@ -145,11 +153,17 @@ class syntax_plugin_dbprocessing extends DokuWiki_Syntax_Plugin {
 		// insert
 		if($SQLs['insert']) {
 			$R->tableheader_open(1, 'center', 1, 'dbHeader');
+			if($mode == 'multiple') $R->doc .= '<button type="submit" class="TCSbtn" value="insert'.
+										$variables.'" name="insert" title="insert">'.
+										$label['insert'].'</button>';
 			$R->tableheader_close();
 		}
 		// update
 		if($SQLs['update']) {
 			$R->tableheader_open(1, 'center', 1, 'dbHeader');
+			if($mode == 'multiple') $R->doc .= '<button type="submit" class="TCSbtn" value="update'.
+										$variables.'" name="update" title="update">'.
+										$label['update'].'</button>';
 			$R->tableheader_close();
 		}
 		if($form) {
@@ -190,16 +204,30 @@ class syntax_plugin_dbprocessing extends DokuWiki_Syntax_Plugin {
 			}
 			// insert
 			if($SQLs['insert']) {
-				$label = $configFile->getButton('insert') ? $configFile->getButton('insert') : 'insert';
 				$R->tablecell_open(1, 'center', 1, 'DBprocessingInsert');
-				$R->doc .= '<button type="submit" class="TCSbtn" value="insert'.$variables.'" name="insert" title="insert">'.$label.'</button> ';
+				if($mode == 'multiple') {
+					$R->doc .= '<input type="checkbox" name="selectedAssets[]" id="'.
+                									    $variables.
+									                    '" value="insert'.$variables.
+                    									'" /> ';
+			} else $R->doc .= '<button type="submit" class="TCSbtn" value="insert'.
+									$variables.'" name="insert" title="insert">'.
+									$label['insert'].
+									'</button> ';
 				$R->tablecell_close();
 			}
 			// insert
 			if($SQLs['update']) {
-				$label = $configFile->getButton('update') ? $configFile->getButton('update') : 'update';
 				$R->tablecell_open(1, 'center', 1, 'DBprocessingUpdate');
-				$R->doc .= '<button type="submit" class="TCSbtn" value="update'.$variables.'" name="update" title="update">'.$label.'</button> ';
+				if($mode == 'multiple') {
+					$R->doc .= '<input type="checkbox" name="selectedAssets[]" id="'.
+                    									$variables.
+                    									'" value="update'.$variables.
+                    									'" /> ';
+				} else $R->doc .= '<button type="submit" class="TCSbtn" value="update'.
+									$variables.'" name="update" title="update">'.
+									$label['update'].
+									'</button> ';
 				$R->tablecell_close();
 			}
 			$R->tablerow_close();
@@ -212,20 +240,25 @@ class syntax_plugin_dbprocessing extends DokuWiki_Syntax_Plugin {
 
 	function processInput($TCSdb, $action, $configFile) {
 		Global $INFO;
-		$actionArr = explode('&', $action);
-		$sql = $configFile->getTagContent('code sql '.$actionArr[0]);
-		if($sql) {
-			foreach($actionArr as $key => $param) {
-				$paramArr = explode('=', $param);
-				if($paramArr[1]) {
-					$params[str_replace('@', '', ':'.$paramArr[0])] = $paramArr[1];
+		$ret = FALSE;
+
+		if(!is_array($action)) $action = array($action);
+		foreach($action as $actionKey => $actionValue) {
+			$actionArr = explode('&', $actionValue);
+			$sql = $configFile->getTagContent('code sql '.$actionArr[0]);
+			if($sql) {
+				foreach($actionArr as $key => $param) {
+					$paramArr = explode('=', $param);
+					if($paramArr[1]) {
+						$params[str_replace('@', '', ':'.$paramArr[0])] = $paramArr[1];
+					}
 				}
+				$params[':user'] = $INFO['userinfo']['user'];
+				$sql = str_replace(array_keys($params), $params, $sql);
+				$TCSdb->query($sql, NULL);
+				$ret = TRUE;
 			}
-			$params[':user'] = $INFO['userinfo']['user'];
-			$sql = str_replace(array_keys($params), $params, $sql);
-			$TCSdb->query($sql, NULL);
-			return TRUE;
 		}
-		else return FALSE;
+		return $ret;
 	}
 }	
