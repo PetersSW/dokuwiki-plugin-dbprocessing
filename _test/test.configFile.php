@@ -8,6 +8,8 @@ echo "configFile.php successfull required!".PHP_EOL;
 $configFile = new configFile('./configFile.txt');
 echo $configFile->getTagContent('code sql select');
 echo PHP_EOL;
+echo $configFile->getTagContent('code class');
+echo PHP_EOL;
 
 var_dump($configFile->getClass('Inventarnr.'));
 echo PHP_EOL;

@@ -8,7 +8,7 @@
 // @license	GPL 3 (http://www.gnu.org/licenses/gpl.html)
 // @author	 Peter H. Spaeth <phs.sw@web.de>  
 // @copyright Copyright(c) 2025, Peter Spaeth
-// @version 0.5 / Dec 20, 2025 
+// @version 0.6 / Nov 12, 2026 
 //
 //////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -35,7 +35,7 @@ class syntax_plugin_dbprocessing extends DokuWiki_Syntax_Plugin {
 			'description'   => 'calls bureaucracy plugin using DB content as input',
 			'author' => 'Peter H. Spaeth',
 			'email'  => 'phs.sw@web.de',
-			'date'   => '2025/12/20',
+			'date'   => '2026/11/12',
 		);
 	}
 
@@ -127,6 +127,10 @@ class syntax_plugin_dbprocessing extends DokuWiki_Syntax_Plugin {
 		Global $conf;
 		Global $ID;
 
+		if(count($lines) === 0) {
+			$R->doc .= "no results!";
+			return FALSE;
+		}
 		$SQLs = array(
 			'insert' => $configFile->getTagContent('code sql insert'),
 			'update' => $configFile->getTagContent('code sql update'),
